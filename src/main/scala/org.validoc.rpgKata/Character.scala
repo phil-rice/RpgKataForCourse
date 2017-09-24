@@ -32,27 +32,42 @@ object AttackError {
 
 sealed trait AttackError
 
-case object AttackerIsDefender extends AttackError
+case object AttackerIsDefender extends AttackError {
+  def apply[Att, Def](attacker: Att, defender: Def) = (attacker == defender).ifTrue(AttackerIsDefender)
+}
 
-case object AttackerNotWithinRange extends AttackError
+case object AttackerNotWithinRange extends AttackError {
+  def apply[Att, Def](attacker: Att, distance: Meters)(implicit inRange: WithinRange[Att]) = inRange(attacker, distance).ifFalse(AttackerNotWithinRange)
+}
 
-case object AttackerSameFaction extends AttackError
+case object AttackerSameFaction extends AttackError {
+  def apply[Att, Def](attacker: Att, defender: Def)(implicit sameFaction: SameFaction[Att, Def]) = sameFaction(attacker, defender).ifTrue(AttackerSameFaction)
+}
 
-case object DamageCannotBeLessThanZero extends AttackError
+case object DamageCannotBeLessThanZero extends AttackError {
+  def apply(hitPoints: HitPoints) = hitPoints.lessThanZero.ifTrue(DamageCannotBeLessThanZero)
+}
 
 
 case class Attack[Att, Def](attacker: Att, defender: Def, hitPoints: HitPoints, distance: Meters)(
   implicit withinRange: WithinRange[Att], findLevelDiff: FindLevelDiff[Att, Def], sameFaction: SameFaction[Att, Def], hitPointLens: Lens[Def, HitPoints], killDef: Kill[Def]) {
 
-  val inRangeCheck = withinRange(attacker, distance).ifFalse(AttackerNotWithinRange)
-  val sameFactionCheck = sameFaction(attacker, defender).ifTrue(AttackerSameFaction)
-  val damageNotNegativeCheck = hitPoints.lessThanZero.ifTrue(DamageCannotBeLessThanZero)
-  val attackIsDefenderCheck = (attacker == defender).ifTrue(AttackerIsDefender)
-  val errors = List(inRangeCheck, sameFactionCheck, damageNotNegativeCheck, attackIsDefenderCheck).flatten
+  val nonFunctionalRequirements = new NonFunctionalRequirements[Def, Def]
+
+  import nonFunctionalRequirements._
+
+  val errors = List(
+    AttackerSameFaction(attacker, defender),
+    AttackerNotWithinRange(attacker, distance),
+    DamageCannotBeLessThanZero(hitPoints),
+    AttackerIsDefender(attacker, defender)).flatten
+
   val realDamage = findLevelDiff(attacker, defender).fold2[HitPoints, HitPoints](hitPoints, lowLevel = _.fiftyPercent, normal = _.asIs, highLevel = _.plusFiftyPercent)
   val killIfNegativeHitPoints: Def => Def = (hitPointLens.has(_.lessThanZero) ifTrue killDef)
 
-  def damage = errors or (defender |> hitPointLens.transform(_ - realDamage) ~> printit("after damage applied {0}") ~> killIfNegativeHitPoints)
+  def nonfunctional = logging("Damaged {1}") |+| metrics(Character.damageCount) |+| error
+
+  def damage = errors or nonfunctional(hitPointLens.transform(_ - realDamage) ~> killIfNegativeHitPoints)
 }
 
 object Character {

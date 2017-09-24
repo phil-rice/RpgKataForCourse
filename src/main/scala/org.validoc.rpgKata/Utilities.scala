@@ -19,6 +19,7 @@ object Utilities {
 
   implicit class FunctionPimper[T, T1](val fn: T => T1) extends AnyVal {
     def ~>[T2](nextFn: T1 => T2) = fn andThen nextFn
+    def |+|[T2](nextFn: T1 => T2) = fn andThen nextFn
 
     def decide[T2](guardFn: T1 => Boolean, ifTrue: T1 => T2, ifFalse: T1 => T2): (T) => T2 = { t: T =>
       val t1 = fn(t)
