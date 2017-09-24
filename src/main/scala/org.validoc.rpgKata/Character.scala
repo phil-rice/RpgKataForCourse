@@ -10,21 +10,7 @@ case class Level(l: Int) {
 
 case class Character(name: String, faction: Faction, range: Range = Melee, level: Level = Level(1), alive: LiveStatus = Alive, hitPoints: HitPoints = HitPoints(1000)) {
 
-  def damage(attacker: Character, distance: Meters, hitPoints: HitPoints): Character =
-    if ((attacker != this) && (attacker.range.canHit(distance)) && attacker.faction != faction) {
-      if (hitPoints.lessThanZero) this else {
-        val damage = (level, attacker.level) match {
-          case (l1, l2) if l1 isFiveOrMoreHigher l2 => hitPoints + hitPoints.fiftyPercent
-          case (l1, l2) if l2 isFiveOrMoreHigher l1 => hitPoints - hitPoints.fiftyPercent
-          case _ => hitPoints
-        }
-        val newHitPoints = this.hitPoints - damage
-        if (newHitPoints.lessThanZero)
-          copy(alive = Dead, hitPoints = HitPoints(0))
-        else
-          copy(hitPoints = newHitPoints)
-      }
-    } else this
+  def damage(attacker: Character, distance: Meters, hitPoints: HitPoints): Character = ???
 }
 
 
