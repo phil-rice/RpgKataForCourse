@@ -2,36 +2,42 @@ package org.validoc.rpgKata
 
 import java.util.concurrent.atomic.AtomicInteger
 
-case class HitPoints(hp: Int) {
-  def +(that: HitPoints): HitPoints = HitPoints(hp + that.hp)
+case class Faction(name: String)
 
-  def -(that: HitPoints): HitPoints = HitPoints(hp - that.hp)
-
-  def lessThanZero: Boolean = hp < 0
-
-  def moreThanMax: Boolean = hp > 1000
+case class Level(l: Int) {
+  def isFiveOrMoreHigher(other: Level) = l - 5 >= other.l
 }
 
-case class Level(l: Int)
+case class Character(name: String, faction: Faction, range: Range = Melee, level: Level = Level(1), alive: LiveStatus = Alive, hitPoints: HitPoints = HitPoints(1000)) {
 
-trait LiveStatus
-
-case object Alive extends LiveStatus
-
-case object Dead extends LiveStatus
-
-case class Character(name: String, alive: LiveStatus = Alive, hitPoints: HitPoints = HitPoints(1000)) {
-  def damage(hitPoints: HitPoints): Character = ???
+  def damage(attacker: Character, distance: Meters, hitPoints: HitPoints): Character =
+    if ((attacker != this) && (attacker.range.canHit(distance)) && attacker.faction != faction) {
+      if (hitPoints.lessThanZero) this else {
+        val damage = (level, attacker.level) match {
+          case (l1, l2) if l1 isFiveOrMoreHigher l2 => hitPoints + hitPoints.fiftyPercent
+          case (l1, l2) if l2 isFiveOrMoreHigher l1 => hitPoints - hitPoints.fiftyPercent
+          case _ => hitPoints
+        }
+        val newHitPoints = this.hitPoints - damage
+        if (newHitPoints.lessThanZero)
+          copy(alive = Dead, hitPoints = HitPoints(0))
+        else
+          copy(hitPoints = newHitPoints)
+      }
+    } else this
 }
+
 
 object Character {
   val damageCount = new AtomicInteger()
+
 }
 
 object Scenario extends App {
-  val thrud = Character("thrud")
+  val someAttacker = Character("Attacker", Faction("NPCs"))
+  val thrud = Character("thrud", Faction("Berserkers"))
 
-  println(thrud.damage(HitPoints(100)))
-  println(s"Damage was called ${Character.damageCount.get} times")
+  println(thrud.damage(someAttacker, Meters(1), HitPoints(100)))
+  //  println(s"Damage was called ${Character.damageCount.get} times")
 
 }
