@@ -1,31 +1,30 @@
 package org.validoc.rpgKata
 
-trait CanFight[T] {
-  def range(t: T): Range
 
-  def faction(t: T): Faction
+trait WithinRange[T] extends ((T, Meters) => Boolean)
 
-  def level(t: T): Level
+trait SameFaction[T1, T2] extends ((T1, T2) => Boolean)
 
-  def kill(t: T): T
 
-  def hitPoints(t: T): HitPoints
-  def setHitPoints(t: T, hitPoints: HitPoints): T
-}
-
-object CanFight {
-
-  implicit class CanFightPimper[T](t: T)(implicit canFight: CanFight[T]) {
-    def range = canFight.range(t)
-
-    def faction = canFight.faction(t)
-
-    def level = canFight.level(t)
-
-    def kill = canFight.kill(t)
-
-    def setHitPoints(hitPoints: HitPoints) = canFight.setHitPoints(t, hitPoints)
-    def hitPoints = canFight.hitPoints(t)
+object SameFaction {
+  implicit def SameFactionFromHasFaction[T1, T2](implicit hasFaction1: HasFaction[T1], hasFaction2: HasFaction[T2]) = new SameFaction[T1, T2] {
+    override def apply(v1: T1, v2: T2) = hasFaction1(v1) == hasFaction2(v2)
   }
-
 }
+
+trait FindLevelDiff[T1, T2] extends ((T1, T2) => LevelDifference)
+
+object FindLevelDiff {
+  implicit def findLevelDiff[T1, T2](implicit hasLevel1: HasLevel[T1], hasLevel2: HasLevel[T2]) = new FindLevelDiff[T1, T2] {
+    override def apply(v1: T1, v2: T2) = hasLevel1(v1) - hasLevel2(v2)
+  }
+}
+
+trait HasFaction[T] extends (T => Faction)
+
+trait HasLevel[T] extends (T => Level)
+
+
+trait Kill[T] extends (T => T)
+
+

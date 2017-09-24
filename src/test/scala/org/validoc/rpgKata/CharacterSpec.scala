@@ -42,6 +42,12 @@ class CharacterSpec extends KataSpec {
   val maxRanged = Meters(20)
   val outsideRanged = Meters(21)
 
+  implicit class ResultPimpler(l: Either[List[AttackError], Character]) {
+    def succeeded = l.right.getOrElse(throw new RuntimeException(s"Expected it to succeed. Was actually ${l.left.get}"))
+
+    def failed = l.left.getOrElse(throw new RuntimeException(s"Expected it to fail. Was actually ${l.right.get}"))
+  }
+
   behavior of "Character"
 
   it should "Start with 1000 hitpoints by default" in {
@@ -55,53 +61,54 @@ class CharacterSpec extends KataSpec {
   behavior of "receiving negative damage"
 
   it should "ignore -ve damage" in {
-    thrud200HitPoints.damage(someMeleeMonster, close, hpMinus100) shouldBe thrud200HitPoints
+    thrud200HitPoints.damage(someMeleeMonster, close, hpMinus100).failed shouldBe List(DamageCannotBeLessThanZero)
   }
 
   behavior of "Death"
 
   it should "die if damage received takes it negative" in {
-    thrud100HitPoints.damage(someMeleeMonster, close, hp900) shouldBe deadThrud
+    thrud100HitPoints.damage(someMeleeMonster, close, hp900).succeeded shouldBe deadThrud
   }
 
   behavior of "Melee Attacks"
 
   it should "only received damage when close" in {
-    thrud.damage(someMeleeMonster, close, hp100) shouldBe thrud.copy(hitPoints = hp900)
-    thrud.damage(someMeleeMonster, maxMelee, hp100) shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someMeleeMonster, close, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someMeleeMonster, maxMelee, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
   }
   it should "ignore damage when outside melee range" in {
-    thrud.damage(someMeleeMonster, justOutsideMelee, hp100) shouldBe thrud
-    thrud.damage(someMeleeMonster, maxRanged, hp100) shouldBe thrud
+    thrud.damage(someMeleeMonster, justOutsideMelee, hp100).failed shouldBe List(AttackerNotWithinRange)
+    thrud.damage(someMeleeMonster, maxRanged, hp100).failed shouldBe List(AttackerNotWithinRange)
   }
 
   behavior of "Not Damaging self"
 
   it should "not be possible to hurt yourself" in {
-    thrud.damage(thrud, close, hp100) shouldBe thrud
+    thrud.damage(thrud, close, hp100).failed shouldBe List(AttackerSameFaction, AttackerIsDefender)
   }
 
   behavior of "Ranged Attacks"
 
   it should "only received damage when close" in {
-    thrud.damage(someRangedMonster, close, hp100) shouldBe thrud.copy(hitPoints = hp900)
-    thrud.damage(someRangedMonster, maxMelee, hp100) shouldBe thrud.copy(hitPoints = hp900)
-    thrud.damage(someRangedMonster, justOutsideMelee, hp100) shouldBe thrud.copy(hitPoints = hp900)
-    thrud.damage(someRangedMonster, maxRanged, hp100) shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someRangedMonster, close, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someRangedMonster, maxMelee, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someRangedMonster, justOutsideMelee, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someRangedMonster, maxRanged, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
   }
 
   it should "ignore damage when outside  range" in {
-    thrud.damage(someRangedMonster, outsideRanged, hp100) shouldBe thrud
+    thrud.damage(someRangedMonster, outsideRanged, hp100).failed shouldBe List(AttackerNotWithinRange)
   }
 
   behavior of "Factions"
 
   it should "be possible to hurt another faction" in {
-    thrud.damage(someMeleeMonster, close, hp100) shouldBe thrud.copy(hitPoints = hp900)
+    thrud.damage(someMeleeMonster, close, hp100).succeeded shouldBe thrud.copy(hitPoints = hp900)
 
   }
   it should "not be possible to hurt another faction" in {
-    thrud.damage(someMeleeBerserker, close, hp100) shouldBe thrud
+    thrud.damage(someMeleeBerserker, close, hp100).failed shouldBe List(AttackerSameFaction)
   }
 
 }
+
