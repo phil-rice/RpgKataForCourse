@@ -62,12 +62,14 @@ case class Attack[Att, Def](attacker: Att, defender: Def, hitPoints: HitPoints, 
     DamageCannotBeLessThanZero(hitPoints),
     AttackerIsDefender(attacker, defender)).flatten
 
-  val realDamage = findLevelDiff(attacker, defender).fold2[HitPoints, HitPoints](hitPoints, lowLevel = _.fiftyPercent, normal = _.asIs, highLevel = _.plusFiftyPercent)
-  val killIfNegativeHitPoints: Def => Def = (hitPointLens.has(_.lessThanZero) ifTrue killDef)
+  val realDamage = findLevelDiff(attacker, defender).fold2[HitPoints, HitPoints](hitPoints,
+    lowLevel = _.fiftyPercent, normal = _.asIs, highLevel = _.plusFiftyPercent)
+
+  val killIfNegativeHitPoints: Def => Def = hitPointLens.has(_.lessThanZero) ifTrue killDef
 
   def nonfunctional = logging("Damaged {1}") |+| metrics(Character.damageCount) |+| error
 
-  def damage = errors or nonfunctional(hitPointLens.transform(_ - realDamage) ~> killIfNegativeHitPoints)
+  def damage = errors or nonfunctional(hitPointLens.transform(hp => hp - realDamage) ~> killIfNegativeHitPoints)
 }
 
 object Character {
@@ -103,6 +105,15 @@ object Scenario extends App {
   val thrud = Character("thrud", Faction("Berserkers"))
 
   println(thrud.damage(someAttacker, Meters(1), HitPoints(100)))
+
   //  println(s"Damage was called ${Character.damageCount.get} times")
+
+  implicit class PimpAny[T](t: T)(implicit canFight: CanFight[T]) {
+    def dump(msg: String) = println(msg + ": " + t + " range: " + canFight.range(t))
+  }
+
+  1.dump("the first item is")
+  2.dump("the first item is")
+
 
 }
